@@ -7,10 +7,6 @@ from midi2json import replace_root
 from pianoroll import Pianoroll
 
 
-source_dir = sys.argv[1]
-target_dir = sys.argv[2]
-
-
 def preprocess(json):
     processed = {}
     try:
@@ -24,6 +20,9 @@ def preprocess(json):
 
 
 if __name__ == "__main__":
+    source_dir = sys.argv[1]
+    target_dir = sys.argv[2]
+
     sources, targets = [], []
     for root, dirs, files in os.walk(source_dir):
         for d in dirs:
