@@ -2,9 +2,6 @@ import os
 import sys
 from subprocess import call
 
-source_dir = sys.argv[1]
-target_dir = sys.argv[2]
-
 
 def replace_root(path, target_dir):
     path = [target_dir] + path.split("/")[1:]
@@ -12,6 +9,8 @@ def replace_root(path, target_dir):
 
 
 if __name__ == "__main__":
+    source_dir = sys.argv[1]
+    target_dir = sys.argv[2]
 
     sources, targets = [], []
     for root, dirs, files in os.walk(source_dir):
