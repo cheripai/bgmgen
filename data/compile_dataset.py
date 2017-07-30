@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     pianoroll_paths = [img_path.replace(img_dir, pianoroll_dir, 1).replace(".jpg", ".bcolz") for img_path in img_paths]
 
-    feats = np.zeros((len(img_paths), 224*224))
+    feats = np.zeros((len(img_paths), 2048))
     for i, img_path in enumerate(img_paths):
         img = image.load_img(img_path, target_size=(224, 224))
         feats[i] = img2feat(img, model)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     index_shuffled = list(range(len(pianorolls)))
     shuffle(index_shuffled)
-    feats_shuffled = np.zeros((len(pianorolls), 224*224))
+    feats_shuffled = np.zeros((len(pianorolls), 2048))
     pianorolls_shuffled = []
     for i, index in enumerate(index_shuffled):
         feats_shuffled[i] = feats[index]
