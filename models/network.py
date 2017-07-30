@@ -51,6 +51,7 @@ def build(max_token_length,
 
     inputs = [notes_input, image_input]
     model = Model(inputs=inputs, outputs=output)
+    model.compile(loss="binary_crossentropy", optimizer="adam")
     return model
 
 
