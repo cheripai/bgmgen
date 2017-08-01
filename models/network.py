@@ -9,7 +9,7 @@ NUM_NOTES = 128
 
 
 def build(max_token_length,
-          num_image_features=2048,
+          num_image_features=4096,
           hidden_size=512,
           embedding_size=512,
           regularizer=1e-8):
