@@ -1,59 +1,52 @@
-from keras.models import Model
-from keras.layers import Input, Dropout, TimeDistributed, Dense
-from keras.layers import BatchNormalization, Embedding, Activation, Reshape
-from keras.layers.merge import Add
-from keras.layers.recurrent import GRU
-from keras.regularizers import l2
-
-NUM_NOTES = 128
+import torch
+import torch.nn as nn
+from torch.autograd import Variable
 
 
-def build(max_token_length,
-          num_image_features=4096,
-          hidden_size=512,
-          embedding_size=512,
-          regularizer=1e-8):
+class Generator(nn.Module):
+    def __init__(self, img_feat_size, hidden_size, output_size, n_layers=1, dropout_p=0.1, max_length=16384):
+        super(Generator, self).__init__()
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+        self.n_layers = n_layers
+        self.dropout_p = dropout_p
+        self.max_length = max_length
 
-    notes_input = Input(shape=(max_token_length, NUM_NOTES), name="notes")
-    notes_to_embedding = TimeDistributed(
-        Dense(
-            units=embedding_size,
-            kernel_regularizer=l2(regularizer),
-            name="notes_embedding"))(notes_input)
-    notes_dropout = Dropout(0.5, name="notes_dropout")(notes_to_embedding)
+        self.linear = nn.Linear(img_feat_size + output_size, hidden_size)
+        self.gru = nn.GRU(
+            self.hidden_size,
+            self.hidden_size,
+            num_layers=n_layers,
+            dropout=self.dropout_p)
+        self.out = nn.Linear(self.hidden_size, self.output_size)
+        self.dropout = nn.Dropout(self.dropout_p)
+        self.sigmoid = nn.Sigmoid()
 
-    image_input = Input(
-        shape=(max_token_length, num_image_features), name="image")
-    image_embedding = TimeDistributed(
-        Dense(
-            units=embedding_size,
-            kernel_regularizer=l2(regularizer),
-            name="image_embedding"))(image_input)
-    image_dropout = Dropout(0.5, name="image_dropout")(image_embedding)
+    def forward(self, input, img_feat, hidden):
+        input_combined = torch.cat((input, img_feat), 1)
+        output = self.dropout(self.linear(input_combined))
+        output = output.unsqueeze(0)
+        output, hidden = self.gru(output, hidden)
+        output = self.sigmoid(self.out(output.squeeze(0)))
+        return output, hidden
 
-    recurrent_inputs = [notes_dropout, image_dropout]
-    merged_input = Add()(recurrent_inputs)
-
-    recurrent_network = GRU(
-        units=hidden_size,
-        recurrent_regularizer=l2(regularizer),
-        kernel_regularizer=l2(regularizer),
-        bias_regularizer=l2(regularizer),
-        return_sequences=True,
-        name='recurrent_network')(merged_input)
-
-    output = TimeDistributed(
-        Dense(
-            units=NUM_NOTES,
-            kernel_regularizer=l2(regularizer),
-            activation="sigmoid"),
-        name="output")(recurrent_network)
-
-    inputs = [notes_input, image_input]
-    model = Model(inputs=inputs, outputs=output)
-    model.compile(loss="binary_crossentropy", optimizer="adam")
-    return model
+    def init_hidden(self, batch_size):
+        return Variable(torch.zeros(1, batch_size, self.hidden_size))
 
 
 if __name__ == "__main__":
-    model = build(128)
+    hidden_size = 512
+    output_size = 128
+    img_feat_size = 4096
+    batch = 4
+    model = Generator(img_feat_size, hidden_size, output_size)
+
+    x = Variable(torch.zeros(batch, output_size))
+    y = Variable(torch.zeros(batch, img_feat_size))
+    hidden = model.init_hidden(batch)
+    
+    output, hidden = model(x, y, hidden)
+    for i in range(10):
+        output, hidden = model(output, y, hidden)
+
+    print(output.size(), hidden.size())
