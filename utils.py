@@ -52,7 +52,7 @@ def write_melody(melody, path, resolution=50, instrument_name="Acoustic Grand Pi
         i += 1
 
     mid.instruments.append(piano)
-    mid.write("test.mid")
+    mid.write(path)
 
 
 if __name__ == "__main__":
