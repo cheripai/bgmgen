@@ -1,16 +1,17 @@
 import numpy as np
-from mido import Message, MidiFile, MidiTrack
+import pretty_midi as pm
 
 REST_TOKEN = 0
 SOS_TOKEN = 129
 EOS_TOKEN = 130
 
+
 def write_pianoroll(input_roll, path, min_subdivision=32):
     mid = MidiFile()
     track = MidiTrack()
     mid.tracks.append(track)
-    pianoroll = np.zeros((input_roll.shape[0]+1,input_roll.shape[1]))
-    pianoroll[1:,:] = input_roll
+    pianoroll = np.zeros((input_roll.shape[0] + 1, input_roll.shape[1]))
+    pianoroll[1:, :] = input_roll
     for i in range(pianoroll.shape[0]):
         for j in range(pianoroll.shape[1]):
             if j == 127:
@@ -19,39 +20,41 @@ def write_pianoroll(input_roll, path, min_subdivision=32):
                 time = 0
             if pianoroll[i, j] == 0:
                 track.append(Message("note_off", note=j, velocity=127, time=time))
-            elif pianoroll[i, j] == 1 and pianoroll[i-1, j] == 0:
+            elif pianoroll[i, j] == 1 and pianoroll[i - 1, j] == 0:
                 track.append(Message("note_on", note=j, velocity=127, time=time))
 
     mid.save(path)
 
-def write_melody(melody, path, min_subdivision=32):
-    mid = MidiFile()
-    track = MidiTrack()
-    mid.tracks.append(track)
-    for i in range(len(melody)):
+
+def write_melody(melody, path, resolution=50, instrument_name="Acoustic Grand Piano"):
+    mid = pm.PrettyMIDI(resolution=resolution)
+    piano = pm.Instrument(program=pm.instrument_name_to_program(instrument_name))
+
+    prev_note = -1
+    i, j = 0, 0
+    while True:
         note = int(melody[i])
         if note == SOS_TOKEN:
-            continue
+            pass
+        elif note == REST_TOKEN:
+            pass
         elif note == EOS_TOKEN:
             break
-        elif note == REST_TOKEN:
-            prev_note = int(melody[i-1])-1
-            if prev_note >= 0 and prev_note < 128:
-                track.append(Message("note_off", note=prev_note, velocity=127, time=min_subdivision))
-            else:
-                track.append(Message("note_on", time=min_subdivision))
         else:
-            prev_note = int(melody[i-1])-1
-            if prev_note == note-1:
-                track.append(Message("note_on", time=min_subdivision))
-            else:
-                track.append(Message("note_on", note=note-1, velocity=127, time=min_subdivision))
+            prev_note = note
+            j = i
+            while note == prev_note:
+                j += 1
+                note = int(melody[j])
+            note = pm.Note(velocity=127, pitch=prev_note - 1, start=mid.tick_to_time(i), end=mid.tick_to_time(j))
+            piano.notes.append(note)
+            i = j - 1
+        i += 1
 
-    mid.save(path)
+    mid.instruments.append(piano)
+    mid.write("test.mid")
+
 
 if __name__ == "__main__":
-    import bcolz
-    melody = bcolz.open("data/melody/Super_Mario_Kart/DonutPlains.bcolz")
+    melody = np.load("data/Pop_Melodies/Around The World - Chorus.npy")
     write_melody(melody, "test.midi")
-    # pianoroll = bcolz.open("data/pianoroll/Super_Mario_Kart/DonutPlains.bcolz")
-    # write_pianoroll(pianoroll, "test.midi")
