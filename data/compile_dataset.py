@@ -1,55 +1,39 @@
-import bcolz
 import numpy as np
 import os
 import sys
-from keras.applications.vgg16 import VGG16, preprocess_input
-from keras.models import Model
-from keras.preprocessing import image
+from PIL import Image
 from random import shuffle
 
-MAX_LENGTH = 16384
+MAX_LENGTH = 2048
+END_SONG_TOKEN = 130
+IMG_SIZE = 224
 
-
-def img2feat(img, model):
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
-    x = preprocess_input(x)
-    return model.predict(x)
-
+def get_filename(fname):
+    return fname.split("/")[-1].split(".")[0]
 
 if __name__ == "__main__":
-    img_dir = sys.argv[1]
-    pianoroll_dir = sys.argv[2]
+    bg_path = sys.argv[1]
+    sequence_path = sys.argv[2]
 
-    base_model = VGG16(include_top=True, weights="imagenet")
-    model = Model(inputs=base_model.input, outputs=base_model.get_layer("fc2").output)
+    sequence_paths = [os.path.join(sequence_path, path) for path in os.listdir(sequence_path) if path.endswith("npy")]
+    bg_paths = [os.path.join(bg_path, get_filename(path).split("-")[0].strip()+".jpg") for path in sequence_paths]
 
-    img_paths = []
+    bgs = np.zeros((len(sequence_paths), 3, IMG_SIZE, IMG_SIZE))
+    for i, bg_path in enumerate(bg_paths):
+        bg = Image.open(bg_path)
+        bg = bg.resize((IMG_SIZE, IMG_SIZE))
+        bg = np.swapaxes(bg, 0, 1)
+        bg = np.swapaxes(bg, 0, 2)
+        bgs[i] = bg
 
-    for root, dirs, files in os.walk(img_dir):
-        for f in files:
-            if f.endswith(".jpg"):
-                img_paths.append(os.path.join(root, f))
 
-    pianoroll_paths = [img_path.replace(img_dir, pianoroll_dir, 1).replace(".jpg", ".bcolz") for img_path in img_paths]
+    sequences = np.zeros((len(sequence_paths), MAX_LENGTH))
+    for i, sequence_path in enumerate(sequence_paths):
+        sequence = np.load(sequence_path)
+        sequence_length = min(MAX_LENGTH, sequence.shape[0])
+        sequences[i,:sequence_length] = sequence[:sequence_length]
+        sequences[i,sequence_length:] = END_SONG_TOKEN
+        sequences[i,sequence_length-1] = END_SONG_TOKEN
 
-    N = len(img_paths)
-
-    index_shuffled = list(range(N))
-    shuffle(index_shuffled)
-
-    feats = np.zeros((N, 4096))
-    for img_path, i in zip(img_paths, index_shuffled):
-        img = image.load_img(img_path, target_size=(224, 224))
-        feats[i] = img2feat(img, model)
-    
-    pianorolls = np.zeros((N, MAX_LENGTH, 128))
-    for pianoroll_path, i in zip(pianoroll_paths, index_shuffled):
-        pianoroll = bcolz.open(pianoroll_path)[:]
-        pianoroll_length = min(MAX_LENGTH, pianoroll.shape[0])
-        pianorolls[i,:pianoroll_length,:] = pianoroll[:pianoroll_length,:]
-
-    c = bcolz.carray(feats, rootdir="img_feats.bcolz", mode="w")
-    c.flush()
-    c = bcolz.carray(pianorolls, rootdir="pianorolls.bcolz", mode="w")
-    c.flush()
+    np.save("bgs.npy", bgs)
+    np.save("sequences.npy", sequences)
