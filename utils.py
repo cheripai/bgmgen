@@ -26,13 +26,15 @@ def write_pianoroll(input_roll, path, min_subdivision=32):
     mid.save(path)
 
 
-def write_melody(melody, path, resolution=50, instrument_name="Acoustic Grand Piano"):
+def write_melody(melody, path, resolution=64, instrument_name="Acoustic Grand Piano"):
     mid = pm.PrettyMIDI(resolution=resolution)
     piano = pm.Instrument(program=pm.instrument_name_to_program(instrument_name))
 
     prev_note = -1
     i, j = 0, 0
     while True:
+        if i >= melody.shape[0]:
+            break
         note = int(melody[i])
         if note == SOS_TOKEN:
             pass
@@ -45,6 +47,8 @@ def write_melody(melody, path, resolution=50, instrument_name="Acoustic Grand Pi
             j = i
             while note == prev_note:
                 j += 1
+                if j >= melody.shape[0]:
+                    break
                 note = int(melody[j])
             note = pm.Note(velocity=127, pitch=prev_note - 1, start=mid.tick_to_time(i), end=mid.tick_to_time(j))
             piano.notes.append(note)
@@ -56,5 +60,5 @@ def write_melody(melody, path, resolution=50, instrument_name="Acoustic Grand Pi
 
 
 if __name__ == "__main__":
-    melody = np.load("data/Pop_Melodies/Around The World - Chorus.npy")
+    melody = np.load("data/melodies/Around The World - Chorus.npy")
     write_melody(melody, "test.midi")
