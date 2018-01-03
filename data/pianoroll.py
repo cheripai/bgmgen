@@ -1,42 +1,26 @@
 import numpy as np
+import pretty_midi as pm
 
 
-MIN_SUBDIVISION = 32
-MAX_NOTES = 128
+def to_piano_roll(pm_container, fs=8):
+    roll = np.copy(pm_container.get_piano_roll(fs=fs).T)
 
+    # transform note velocities into 1s
+    roll = (roll > 0).astype(float)
 
-class Pianoroll:
-    
-    def __init__(self, bpm, notes):
-        self.bps = bpm / 60
-        self.notes = notes
-        self.total_duration = self._get_total_duration()
-        self.total_beats = self._get_total_beats()
-        self.total_subdivisions = self._get_subdivisions()
-        self.roll = self._to_pianoroll()
+    # remove empty beginning
+    for i, col in enumerate(roll):
+        if col.sum() != 0:
+            break
+    roll = roll[i:]
 
+    if roll.sum() == 0:
+        raise Exception("Roll is empty")
 
-    def _get_total_duration(self):
-        durations = np.zeros((len(self.notes)))
-        for i in range(len(self.notes)):
-            durations[i] = self.notes[i]["time"] + self.notes[i]["duration"]
-        return np.max(durations)
+    return roll
 
-    def _get_total_beats(self):
-        return int(round(self.bps * self.total_duration))
-
-    def _get_subdivisions(self):
-        return int(round(self.total_beats * MIN_SUBDIVISION))
-
-    def _to_index(self, time):
-        depth_prop = time / self.total_duration
-        return int(round(depth_prop * self.total_subdivisions))
-
-    def _to_pianoroll(self):
-        roll = np.zeros((self.total_subdivisions, MAX_NOTES))
-        for note in self.notes:
-            for i in range(self._to_index(note["time"]), self._to_index(note["time"] + note["duration"])):
-                roll[i, note["midi"]] = 1
-        return roll
-
-
+if __name__ == "__main__":
+    pm_container = pm.PrettyMIDI("data/Pop_Music_Midi/Around The World - Verse.midi")
+    del pm_container.instruments[1]
+    roll = to_piano_roll(pm_container)
+    np.save("test.npy", roll)
