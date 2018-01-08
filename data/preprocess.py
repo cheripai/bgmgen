@@ -5,9 +5,6 @@ import sys
 from melody import Melody
 from pianoroll import to_piano_roll
 
-MELODY_INDEX = 0
-RESOLUTION = 8
-
 
 def replace_extension(name, ext):
     base = "".join(name.split(".")[:-1])
@@ -25,8 +22,11 @@ if __name__ == "__main__":
 
     for midi_file in os.listdir(source_dir):
         if midi_file.endswith("midi") or midi_file.endswith("mid"):
-            midi_data = pm.PrettyMIDI(os.path.join(source_dir, midi_file))
-            # melody = Melody(midi_data.instruments[MELODY_INDEX].get_piano_roll(), midi_data.resolution)
-            del midi_data.instruments[1]
-            pianoroll = to_piano_roll(midi_data)
-            np.save(os.path.join(target_dir, replace_extension(midi_file, "npy").lower().replace("'", "")), pianoroll)
+            try:
+                midi_data = pm.PrettyMIDI(os.path.join(source_dir, midi_file))
+                for instrument in midi_data.instruments:
+                    if instrument.program == 0:
+                        pianoroll = to_piano_roll(instrument)
+                        np.save(os.path.join(target_dir, replace_extension(midi_file, "npy").lower().replace("'", "")), pianoroll)
+            except:
+                continue
