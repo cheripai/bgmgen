@@ -10,7 +10,7 @@ idna==2.5
 Keras==2.0.4
 midi==0.2.3
 mido==1.2.7
-numpy==1.13.0
+numpy==1.21.0
 oauth2client==4.1.1
 olefile==0.44
 Pillow==4.1.1
